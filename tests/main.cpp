@@ -1,5 +1,5 @@
-#include <catch.hpp>
-
 #include <channel.h>
+
+#include <catch.hpp>
 
 SCENARIO("", "[channel]")

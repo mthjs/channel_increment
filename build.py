@@ -49,6 +49,12 @@ parser.add_argument(
     default=False,
     action='store_true',
 )
+parser.add_argument(
+    '--test', '-t',
+    help='Run the tests after the build is done.',
+    default=False,
+    action='store_true',
+)
 
 
 if __name__ == '__main__':
@@ -57,5 +63,13 @@ if __name__ == '__main__':
         shutil.rmtree('build')
     os.makedirs('build', exist_ok=True)
     os.chdir('build')
-    shell('cmake .. -G Ninja -DCMAKE_CXX_FLAGS="-fdiagnostics-color"')
+    shell(
+        'cmake .. '
+        '-G Ninja '
+        '-DCMAKE_CXX_FLAGS="-fdiagnostics-color"'
+    )
     shell('ninja')
+
+    if args.test:
+        os.chdir('tests')
+        shell('./test')

@@ -10,8 +10,9 @@
 
 
 SCENARIO("A new channel", "[channel]") {
+   Channel<std::string> channel;
+
    GIVEN("That no message has been sent over this channel yet") {
-      Channel<std::string> channel;
 
       WHEN("Checking if it is empty") {
          THEN("``true`` is returned") {
@@ -38,6 +39,22 @@ SCENARIO("A new channel", "[channel]") {
             channel.try_receive(received);
             REQUIRE(received == "Hello there!");
          }
+      }
+   }
+
+   GIVEN("Several messages have been send in order") {
+      channel.send("one");
+      channel.send("two");
+      channel.send("three");
+
+      THEN("The order should be te same") {
+         std::string received;
+         channel.blocking_receive(received);
+         REQUIRE(received == "one");
+         channel.blocking_receive(received);
+         REQUIRE(received == "two");
+         channel.blocking_receive(received);
+         REQUIRE(received == "three");
       }
    }
 }
@@ -85,5 +102,25 @@ SCENARIO("Somebody is awaiting messages", "[channel]") {
          inbox >> reply;
          REQUIRE(outbox.empty());
       }
+   }
+}
+
+void block(Channel<std::string>& inbox, Channel<std::string>& outbox) {
+   std::string message;
+   inbox.blocking_receive(message);
+   outbox.send(message);
+}
+
+SCENARIO("Somebody is blocking receiving", "[channel]") {
+   Channel<std::string> inbox;
+   Channel<std::string> outbox;
+   std::thread blocker(&block, std::ref(outbox), std::ref(inbox));
+   blocker.detach();
+
+   THEN("Everything still works") {
+      outbox.send("Hello there!");
+      std::string message;
+      inbox.blocking_receive(message);
+      REQUIRE(message == "Hello there!");
    }
 }

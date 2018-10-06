@@ -5,6 +5,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+from contextlib import suppress
 
 
 def red(text: str) -> str:
@@ -58,18 +59,18 @@ parser.add_argument(
 
 
 if __name__ == '__main__':
-    args = parser.parse_args()
-    if args.clean:
-        shutil.rmtree('build')
-    os.makedirs('build', exist_ok=True)
-    os.chdir('build')
-    shell(
-        'cmake .. '
-        '-G Ninja '
-        '-DCMAKE_CXX_FLAGS="-fdiagnostics-color"'
-    )
-    shell('ninja')
+    with suppress(KeyboardInterrupt):
+        args = parser.parse_args()
+        if args.clean:
+            shutil.rmtree('build')
+        os.makedirs('build', exist_ok=True)
+        os.chdir('build')
+        shell('cmake .. ')
+        shell('make -j 6')
 
-    if args.test:
-        os.chdir('tests')
-        shell('./test')
+        if args.test:
+            message = 'Starting Tests'
+            padding = '=' * round((80 - 2 - len(message)) / 2)
+            print(f'\n{padding} {message} {padding}\n')
+            os.chdir('tests')
+            shell('./test --order decl --durations yes')

@@ -39,10 +39,16 @@ struct Channel
       ValueType& recipient;
    };
 
+public:
+   bool empty() {
+      return messages.empty();
+   }
+
    void send(const ValueType& message)
    {
       std::lock_guard<std::mutex> guard(key);
       messages.push(message);
+      received.notify_all();
    }
 
    void receive(ValueType& recipient)
@@ -56,9 +62,9 @@ struct Channel
    bool try_receive(ValueType& recipient)
    {
       bool succeded = false;
-      if (key.try_lock()) {
-         std::lock_guard<std::mutex> guard(key);
-         if (!messages.empty()) {
+      std::unique_lock<std::mutex> guard(key, std::try_to_lock);
+      if(guard.owns_lock()){
+         if (!empty()) {
             recipient = messages.front();
             messages.pop();
             succeded = true;

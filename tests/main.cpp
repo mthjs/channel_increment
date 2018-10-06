@@ -4,39 +4,86 @@
 
 #include <catch2/catch.hpp>
 
+#include <chrono>
 #include <string>
 #include <thread>
 
 
-SCENARIO("a new channel", "[channel]") {
-   GIVEN("that no message has been sent over this channel yet") {
+SCENARIO("A new channel", "[channel]") {
+   GIVEN("That no message has been sent over this channel yet") {
       Channel<std::string> channel;
 
-      WHEN("checking if it is empty") {
+      WHEN("Checking if it is empty") {
          THEN("``true`` is returned") {
-            REQUIRE(channel.empty() == true);
+            REQUIRE(channel.empty());
          }
       }
 
-      WHEN("trying to receive a message") {
-         THEN("noting is received and ``false`` is returned") {
+      WHEN("Trying to receive a message") {
+         THEN("Noting is received and ``false`` is returned") {
             std::string received = "Waiting for a message :)";
-            REQUIRE(channel.try_receive(received) == false);
+            REQUIRE(!channel.try_receive(received));
             REQUIRE(received == "Waiting for a message :)");
          }
       }
 
-      WHEN("a message is send") {
-         THEN("the channel is no longer empty") {
+      WHEN("A message is send") {
+         THEN("The channel is no longer empty") {
             channel.send("Hello there!");
-            REQUIRE(channel.empty() == false);
+            REQUIRE(!channel.empty());
          }
-         THEN("the message can be received") {
+         THEN("The message can be received") {
             std::string received;
             channel.send("Hello there!");
             channel.try_receive(received);
             REQUIRE(received == "Hello there!");
          }
+      }
+   }
+}
+
+void ping(Channel<std::string>& channel) {
+   for(;;) {
+      channel << "ping!";
+      std::this_thread::sleep_for(std::chrono::milliseconds(500));
+   }
+}
+
+SCENARIO("Somebody is sending messages", "[channel]") {
+   Channel<std::string> channel;
+   std::thread pinger(&ping, std::ref(channel));
+   pinger.detach();
+
+   WHEN("Waiting for a message") {
+      THEN("A message is received") {
+         std::string received;
+         channel >> received;
+         REQUIRE(received == "ping!");
+      }
+   }
+}
+
+void correspond(Channel<std::string>& inbox, Channel<std::string>& outbox) {
+   for(;;) {
+      std::string message;
+      inbox >> message;
+      std::this_thread::sleep_for(std::chrono::milliseconds(500));
+      outbox << "Thank you!";
+   }
+}
+
+SCENARIO("Somebody is awaiting messages", "[channel]") {
+   Channel<std::string> outbox;
+   Channel<std::string> inbox;
+   std::thread pen_pal(&correspond, std::ref(outbox), std::ref(inbox));
+   pen_pal.detach();
+
+   WHEN("A message through the awaited channel") {
+      THEN("The message is taken from the channel") {
+         outbox << "Hello there!";
+         std::string reply;
+         inbox >> reply;
+         REQUIRE(outbox.empty());
       }
    }
 }

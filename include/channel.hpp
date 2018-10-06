@@ -31,7 +31,7 @@ struct Channel
       ~Receiver()
       {
          if (incomming)
-            incomming->receive(recipient);
+            incomming->blocking_receive(recipient);
       }
 
    private:
@@ -41,6 +41,7 @@ struct Channel
 
 public:
    bool empty() {
+      std::lock_guard<std::mutex> guard(key);
       return messages.empty();
    }
 
@@ -51,26 +52,26 @@ public:
       received.notify_all();
    }
 
-   void receive(ValueType& recipient)
-   {
-      std::lock_guard<std::mutex> guard(key);
-      received.wait(key, [this]() { return !messages.empty(); });
-      recipient = messages.front();
-      messages.pop();
-   }
-
    bool try_receive(ValueType& recipient)
    {
       bool succeded = false;
       std::unique_lock<std::mutex> guard(key, std::try_to_lock);
       if(guard.owns_lock()){
-         if (!empty()) {
+         if (!messages.empty()) {
             recipient = messages.front();
             messages.pop();
             succeded = true;
          }
       }
       return succeded;
+   }
+
+   void blocking_receive(ValueType& recipient)
+   {
+      std::lock_guard<std::mutex> guard(key);
+      received.wait(key, [this]() { return !messages.empty(); });
+      recipient = messages.front();
+      messages.pop();
    }
 
    void operator<<(const ValueType& message) { send(message); }

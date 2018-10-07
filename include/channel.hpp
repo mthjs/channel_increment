@@ -12,11 +12,11 @@ struct Channel
    struct Receiver
    {
       Receiver(Channel<ValueType>* incomming, ValueType& recipient)
-         : incomming(incomming)
-         , recipient(recipient)
+        : incomming(incomming)
+        , recipient(recipient)
       {}
       Receiver(Receiver& other)
-         : Receiver(other.incomming, other.recipient)
+        : Receiver(other.incomming, other.recipient)
       {
          other.incomming = nullptr;
       }
@@ -31,7 +31,7 @@ struct Channel
       ~Receiver()
       {
          if (incomming)
-            incomming->blocking_receive(recipient);
+            incomming->receive(recipient);
       }
 
    private:
@@ -40,7 +40,8 @@ struct Channel
    };
 
 public:
-   bool empty() {
+   bool empty()
+   {
       std::lock_guard<std::mutex> guard(key);
       return messages.empty();
    }
@@ -56,7 +57,7 @@ public:
    {
       bool succeded = false;
       std::unique_lock<std::mutex> guard(key, std::try_to_lock);
-      if(guard.owns_lock()){
+      if (guard.owns_lock()) {
          if (!messages.empty()) {
             recipient = messages.front();
             messages.pop();
@@ -66,7 +67,7 @@ public:
       return succeded;
    }
 
-   void blocking_receive(ValueType& recipient)
+   void receive(ValueType& recipient)
    {
       std::lock_guard<std::mutex> guard(key);
       received.wait(key, [this]() { return !messages.empty(); });
